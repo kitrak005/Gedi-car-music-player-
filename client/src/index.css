@@ -105,91 +105,304 @@ input[type="range"] { appearance: none; height: 3px; border-radius: 3px; backgro
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes rain-streaks { to { background-position: 0 30px; } }
 
-@media (max-width: 860px) {
-  .topbar { padding: 18px 18px; flex-wrap: wrap; }.theme-pill { order: 3; width: 100%; justify-content: center; }.nav-pill { margin-left: auto; }.hero-copy { margin-top: 68px; }.floating-note { top: 46%; left: 20px; transform: scale(.88) rotate(-3deg); transform-origin: top left; }.utility-row { top: 66%; }.player-shell { right: 18px; left: 18px; width: auto; transform: none; grid-template-columns: 1fr auto; gap: 12px; }.player-center { grid-column: 1 / -1; grid-row: 2; }.player-source-column { grid-column: 2; grid-row: 1; }.volume-block { grid-column: 2; grid-row: 1; }.contact { bottom: 146px; left: 20px; }.scroll-cue { right: 20px; bottom: 146px; }
-}
+/* Proportional layout preservation for mobile viewports */
+@media (max-width: 960px) {
+  .topbar {
+    display: flex;
+    position: relative;
+    z-index: 10;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: clamp(10px, 2.5vw, 20px) clamp(10px, 3vw, 24px);
+    box-sizing: border-box;
+  }
+  
+  .listener-pill {
+    min-height: clamp(28px, 6.5vw, 38px);
+    padding: 0 clamp(8px, 2vw, 14px);
+    font-size: clamp(8px, 2vw, 11px);
+    gap: clamp(4px, 1vw, 8px);
+    flex-shrink: 0;
+  }
+  .brand-word {
+    font-size: clamp(11px, 2.8vw, 14px);
+  }
+  .top-divider {
+    height: clamp(9px, 2vw, 13px);
+  }
+  .live-dot {
+    width: clamp(5px, 1.2vw, 7px);
+    height: clamp(5px, 1.2vw, 7px);
+  }
+  .muted-label {
+    font-size: clamp(7px, 1.8vw, 10px);
+  }
+  
+  .theme-pill {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    min-height: clamp(26px, 6vw, 38px);
+    padding: 0 clamp(6px, 1.5vw, 12px);
+    gap: clamp(3px, 0.8vw, 8px);
+    font-size: clamp(8px, 1.8vw, 11px);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .theme-swatch {
+    width: clamp(10px, 2.5vw, 18px);
+    height: clamp(10px, 2.5vw, 18px);
+  }
+  .theme-current {
+    font-size: clamp(7px, 1.6vw, 9px);
+    padding-left: clamp(2px, 0.8vw, 6px);
+  }
+  
+  .nav-pill {
+    min-height: clamp(26px, 6vw, 38px);
+    padding: 0 clamp(6px, 1.6vw, 14px);
+    gap: clamp(5px, 1.3vw, 14px);
+    font-size: clamp(8px, 1.8vw, 11px);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .nav-pill button {
+    padding: clamp(5px, 1.2vw, 10px) 0;
+  }
+  .nav-divider {
+    height: clamp(10px, 2.2vw, 14px);
+  }
+  .nav-pill .support-link {
+    padding: clamp(3px, 0.8vw, 6px) clamp(5px, 1.2vw, 9px);
+    gap: 3px;
+  }
 
-@media (max-width: 560px) {
-  .radio-app { min-height: 100svh; padding-bottom: 144px; }.topbar { align-items: flex-start; gap: 10px; }.listener-pill, .nav-pill { min-height: 36px; }.listener-pill { padding: 0 11px; }.nav-pill { gap: 10px; padding-left: 12px; font-size: 10px; }.nav-pill .support-link { padding: 6px 8px; }.theme-pill { min-height: 36px; font-size: 11px; }.theme-current { display: none; }.hero-copy { width: calc(100% - 30px); margin-top: 70px; }.station-label { font-size: 8px; letter-spacing: .12em; }.station-label span { width: 23px; }.hero-copy h1 { font-size: clamp(3.6rem, 18vw, 6rem); }.hero-copy p { font-size: 15px; }.floating-note { top: 41%; left: 9px; width: 145px; padding: 11px; }.floating-note strong { margin-top: 8px; font-size: 15px; }.floating-note > span { font-size: 8px; }.signal-bars { margin-top: 8px; }.utility-row { top: 62%; width: calc(100% - 22px); gap: 6px; }.utility-pill { min-height: 32px; padding: 0 10px; font-size: 9px; }.utility-pill svg { width: 13px; }.utility-pill:nth-child(2) { display: none; }.rain-control { top: calc(62% + 44px); width: 205px; }.contact { bottom: 122px; left: 15px; font-size: 8px; }.scroll-cue { right: 15px; bottom: 120px; font-size: 8px; }.player-shell { right: 10px; bottom: 10px; left: 10px; width: auto; grid-template-columns: 1fr auto; min-height: 88px; padding: 8px 10px; transform: none; border-radius: 12px; }.album-art { width: 42px; height: 42px; border-width: 3px; }.album-art::after { inset: 11px; border-width: 3px; }.track-block { gap: 7px; }.track-meta strong { font-size: 14px; }.track-meta > span:last-child { max-width: 135px; }.player-center { gap: 5px; }.official-source-line { gap: 6px; font-size: 7px; }.player-source-column { grid-column: 2; grid-row: 1; justify-content: flex-end; }.youtube-inline { width: 86px; padding: 3px; }.youtube-inline-head { margin-bottom: 2px; font-size: 5px; }.youtube-inline iframe { height: 40px; }.player-buttons { gap: 6px; }.play-button { width: 34px; height: 34px; }.icon-button { width: 25px; height: 25px; }.info-modal { padding: 34px 24px 28px; }.info-modal h2 { font-size: 31px; }
-}
+  @media (max-width: 540px) {
+    .theme-current {
+      display: none;
+    }
+    .muted-label {
+      display: none;
+    }
+    .top-divider {
+      display: none;
+    }
+  }
 
+  .hero-copy {
+    position: relative;
+    z-index: 2;
+    width: min(820px, calc(100% - 20px));
+    margin: clamp(38px, 8.5vh, 85px) auto 0;
+    text-align: center;
+  }
+  .station-label {
+    font-size: clamp(7.5px, 1.8vw, 9.5px);
+    gap: clamp(6px, 1.5vw, 10px);
+    letter-spacing: clamp(0.08em, 0.4vw, 0.16em);
+    transform: translateY(-8px);
+  }
+  .station-label span {
+    width: clamp(16px, 4vw, 36px);
+  }
+  .hero-copy h1 {
+    margin: clamp(12px, 2.5vh, 28px) 0 4px;
+    font-size: clamp(2.3rem, 9.5vw, 5.5rem);
+    white-space: nowrap;
+    line-height: 0.95;
+  }
+  .hero-copy p {
+    margin: clamp(6px, 1.2vh, 12px) 0 clamp(8px, 1.8vh, 16px);
+    font-size: clamp(11px, 2.8vw, 16px);
+  }
+  .hero-rule {
+    gap: clamp(6px, 1.5vw, 9px);
+  }
+  .hero-rule span {
+    width: clamp(20px, 5vw, 42px);
+  }
 
-/* Responsive finishing pass */
-html, body, #root { width: 100%; max-width: 100%; overflow-x: hidden; }
-button, a, input { touch-action: manipulation; }
+  .floating-note {
+    position: absolute;
+    z-index: 3;
+    top: clamp(40%, 43vh, 48%);
+    left: clamp(8px, 2.5vw, 28px);
+    width: clamp(105px, 25vw, 175px);
+    padding: clamp(8px, 1.8vw, 14px);
+    border-radius: clamp(8px, 1.8vw, 12px);
+    transform: rotate(-3deg);
+  }
+  .note-kicker {
+    gap: 4px;
+    font-size: clamp(6.5px, 1.6vw, 8px);
+    letter-spacing: 0.08em;
+  }
+  .floating-note strong {
+    margin-top: clamp(6px, 1.2vh, 10px);
+    font-size: clamp(11px, 2.8vw, 18px);
+    line-height: 1.1;
+  }
+  .floating-note > span {
+    margin-top: 3px;
+    font-size: clamp(7px, 1.8vw, 9.5px);
+  }
+  .signal-bars {
+    height: clamp(10px, 2.2vw, 16px);
+    margin-top: clamp(6px, 1.2vh, 10px);
+    gap: 2px;
+  }
+  .signal-bars i {
+    width: clamp(2px, 0.5vw, 3px);
+  }
 
-@media (max-width: 860px) {
-  .topbar { padding: 16px 18px; gap: 10px; }
-  .hero-copy { margin-top: 80px; }
-  .hero-copy h1 { font-size: clamp(3.5rem, 11vw, 6rem); white-space: nowrap; }
-  .hero-copy p { font-size: clamp(14px, 2vw, 17px); }
-  .theme-pill, .nav-pill button, .utility-pill { min-height: 44px; }
-  .player-buttons .icon-button, .player-buttons .play-button { width: 44px; height: 44px; }
-  .player-shell { bottom: max(12px, env(safe-area-inset-bottom)); height: 96px; }
-}
+  .utility-row {
+    position: absolute;
+    z-index: 7;
+    top: clamp(58%, 62vh, 66%);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(650px, calc(100% - 24px));
+    gap: 6px;
+  }
+  .utility-pill {
+    min-height: clamp(28px, 6vw, 36px);
+    padding: 0 clamp(8px, 2vw, 12px);
+    font-size: clamp(8.5px, 2vw, 10.5px);
+    gap: 5px;
+  }
+  .rain-control {
+    top: calc(clamp(58%, 62vh, 66%) + clamp(36px, 6vh, 48px));
+    width: clamp(180px, 45vw, 220px);
+    padding: clamp(6px, 1.2vw, 9px) clamp(8px, 1.5vw, 11px);
+    font-size: clamp(8px, 1.8vw, 9.5px);
+    gap: 7px;
+  }
+  .rain-control input {
+    width: clamp(45px, 12vw, 65px);
+  }
 
-@media (max-width: 560px) {
-  .radio-app { min-height: 100svh; padding-bottom: calc(124px + env(safe-area-inset-bottom)); }
-  .topbar { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 8px 10px; padding: 12px 12px 0; }
-  .listener-pill { min-height: 44px; padding: 0 11px; }
-  .nav-pill { min-height: 44px; justify-self: end; gap: 3px; padding: 0 6px 0 10px; font-size: 10px; }
-  .nav-pill button { min-height: 44px; }
-  .nav-pill .support-link { min-height: 44px; padding: 6px 7px; }
-  .theme-pill { grid-column: 1 / -1; width: 100%; min-height: 44px; justify-content: center; font-size: 11px; }
-  .theme-current { display: inline; }
-  .hero-copy { width: calc(100% - 24px); margin-top: 76px; }
-  .station-label { gap: 6px; font-size: 7px; letter-spacing: .1em; }
-  .station-label span { width: 20px; }
-  .hero-copy h1 { margin-top: 14px; font-size: clamp(3rem, 14.5vw, 4.7rem); letter-spacing: -.1em; white-space: nowrap; }
-  .hero-copy p { max-width: 270px; margin: 10px auto 16px; font-size: 14px; line-height: 1.4; }
-  .floating-note { top: 42%; left: 10px; width: 132px; padding: 10px 11px 12px; transform: scale(.82) rotate(-3deg); transform-origin: top left; }
-  .floating-note strong { margin-top: 8px; font-size: 15px; }
-  .floating-note > span { font-size: 8px; }
-  .utility-row { top: 61%; width: calc(100% - 20px); gap: 5px; }
-  .utility-pill { min-height: 44px; padding: 0 9px; gap: 4px; font-size: 9px; }
-  .utility-pill:nth-child(2) { display: none; }
-  .rain-control { top: calc(61% + 50px); width: min(205px, calc(100% - 32px)); }
-  .contact { bottom: calc(112px + env(safe-area-inset-bottom)); left: 14px; font-size: 8px; }
-  .scroll-cue { right: 14px; bottom: calc(110px + env(safe-area-inset-bottom)); }
-  .player-shell { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); left: 8px; width: auto; height: 96px; min-height: 96px; padding: 6px 8px; gap: 6px; border-radius: 12px; }
-  .album-art { width: 40px; height: 40px; }
-  .album-art::after { inset: 10px; border-width: 3px; }
-  .track-block { gap: 6px; }
-  .track-meta strong { max-width: 125px; font-size: 14px; }
-  .track-meta > span:last-child { max-width: 125px; font-size: 7px; }
-  .player-center { gap: 4px; }
-  .official-source-line { gap: 5px; font-size: 7px; }
-  .player-buttons { gap: 4px; }
-  .player-buttons .icon-button, .player-buttons .play-button { width: 44px; height: 44px; }
-  .player-source-column { grid-column: 2; grid-row: 1; }
-  .youtube-inline { width: 92px; padding: 3px; }
-  .youtube-inline-head { height: 44px; margin: -3px -3px 0; justify-content: flex-end; }
-  .youtube-inline-head span { display: none; }
-  .youtube-inline iframe { height: 38px; }
-  .inline-close { width: 44px; height: 44px; }
-  .close-button, .chat-compose button { min-width: 44px; min-height: 44px; }
-  .modal-action { min-height: 44px; }
-  .info-modal { max-height: calc(100svh - 32px); overflow-y: auto; padding: 32px 22px 24px; }
-}
-
-@media (max-width: 380px) {
-  .nav-pill { gap: 0; font-size: 9px; }
-  .nav-pill .support-link { padding: 5px; }
-  .hero-copy { margin-top: 68px; }
-  .hero-copy h1 { font-size: clamp(2.7rem, 14vw, 3.8rem); }
-  .floating-note { display: none; }
-  .utility-row { top: 59%; }
-  .rain-control { top: calc(59% + 50px); }
-  .track-meta strong, .track-meta > span:last-child { max-width: 108px; }
-  .youtube-inline { width: 82px; }
-}
-
-
-/* Final header alignment overrides */
-@media (max-width: 860px) {
-  .theme-pill { position: static; left: auto; transform: none; }
-}
-@media (max-width: 560px) {
-  .station-label { transform: translateY(-8px); }
-  .hero-copy h1 { margin-top: 24px; }
+  .player-shell {
+    position: absolute;
+    z-index: 10;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    display: grid;
+    grid-template-columns: 1.15fr 1fr 0.85fr;
+    align-items: center;
+    width: min(900px, calc(100% - clamp(12px, 3vw, 40px)));
+    height: clamp(56px, 10vh, 76px);
+    min-height: 0;
+    padding: clamp(5px, 1vw, 9px) clamp(6px, 1.4vw, 12px);
+    gap: clamp(4px, 1.2vw, 12px);
+    border-radius: clamp(10px, 2vw, 14px);
+    box-sizing: border-box;
+  }
+  
+  .track-block {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: clamp(5px, 1.2vw, 9px);
+  }
+  .album-art {
+    width: clamp(32px, 6.8vw, 46px);
+    height: clamp(32px, 6.8vw, 46px);
+    border-width: 2px;
+    flex: 0 0 auto;
+  }
+  .album-art::after {
+    inset: clamp(7px, 1.6vw, 12px);
+    border-width: 2px;
+  }
+  .track-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .track-year {
+    font-size: clamp(6px, 1.4vw, 7.5px);
+  }
+  .track-meta strong {
+    font-size: clamp(10px, 2.4vw, 15px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .track-meta > span:last-child {
+    font-size: clamp(6px, 1.4vw, 7.5px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .player-center {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3px, 0.8vh, 6px);
+    align-items: center;
+    min-width: 0;
+  }
+  .official-source-line {
+    font-size: clamp(6px, 1.4vw, 8.5px);
+    gap: clamp(4px, 1vw, 8px);
+    white-space: nowrap;
+  }
+  .player-buttons {
+    gap: clamp(4px, 1vw, 8px);
+    display: flex;
+    align-items: center;
+  }
+  .play-button {
+    width: clamp(28px, 6vw, 36px);
+    height: clamp(28px, 6vw, 36px);
+  }
+  .icon-button {
+    width: clamp(20px, 4.5vw, 26px);
+    height: clamp(20px, 4.5vw, 26px);
+  }
+  
+  .player-source-column {
+    min-width: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .official-link {
+    font-size: clamp(7px, 1.8vw, 9.5px);
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .youtube-inline {
+    position: static;
+    transform: none;
+    width: clamp(80px, 20vw, 115px);
+    height: clamp(46px, 8.5vh, 64px);
+    padding: 3px;
+    border-radius: 6px;
+  }
+  .youtube-inline-head {
+    height: clamp(12px, 2.5vh, 16px);
+    font-size: clamp(5px, 1.2vw, 6px);
+  }
+  .youtube-inline iframe {
+    height: clamp(28px, 5.5vh, 40px);
+  }
+  .inline-close {
+    width: clamp(16px, 3.5vw, 20px);
+    height: clamp(16px, 3.5vw, 20px);
+  }
+  
+  .contact {
+    bottom: clamp(70px, 12vh, 120px);
+    left: clamp(10px, 2.5vw, 28px);
+    font-size: clamp(7px, 1.8vw, 9px);
+  }
+  .scroll-cue {
+    bottom: clamp(70px, 12vh, 120px);
+    right: clamp(10px, 2.5vw, 28px);
+    font-size: clamp(6.5px, 1.6vw, 8.5px);
+  }
 }
