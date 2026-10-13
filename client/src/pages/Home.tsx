@@ -384,7 +384,7 @@ export default function Home() {
   const handleImportSuccess = (
     name: string,
     importedTracks: Track[],
-    source: "youtube" | "spotify" | "applemusic",
+    source: "youtube",
     url: string
   ) => {
     const saved = saveCustomPlaylist(name, importedTracks, source, url);
@@ -578,7 +578,7 @@ export default function Home() {
                 <span className="eyebrow"><Info size={12} /> ABOUT GEDI</span>
                 <h2>Some songs never really leave.</h2>
                 <p>gedi is a small online radio for the songs that played through dashboard speakers, laptop speakers, and cracked phone screens. Out of the box it plays a curated Bollywood preset from 2010 to 2014.</p>
-                <p>Now the radio is yours too. Use the <strong>Source</strong> selector in the top-left corner to switch between the Gedi Preset and your own imported playlists. Tap <strong>+ Tune Link</strong>, paste a public playlist link from Spotify, YouTube Music, or Apple Music, and gedi tunes in. Songs auto-advance one after another, with shuffle and repeat whenever you want them.</p>
+                <p>Now the radio is yours too. Use the <strong>Source</strong> selector in the top-left corner to switch between the Gedi Preset and your own imported playlists. Tap <strong>+ Tune Link</strong>, paste a public YouTube playlist link, and gedi tunes in. Songs auto-advance one after another, with shuffle and repeat whenever you want them.</p>
                 <p>Turn on <strong>Baarish?</strong> for rain on the windshield, and change the scene any time with <strong>Change Theme</strong>.</p>
                 <div className="modal-signoff">— transmitting from the driver's seat, always</div>
               </>
@@ -591,11 +591,11 @@ export default function Home() {
                 <div className="faq-scroll">
                   <div className="faq-item"><strong>Is this a real stream?</strong><p>It's a playful demo station with official song sources. By default it plays a curated 2010–14 Bollywood playlist.</p></div>
                   <div className="faq-item"><strong>How do I switch to my own playlist?</strong><p>Open the Source selector in the top-left corner and pick your imported playlist. To add one, tap <strong>+ Tune Link</strong> under the tagline, paste the link, and confirm.</p></div>
-                  <div className="faq-item"><strong>Which playlists can I import?</strong><p>Public playlists from Spotify, YouTube Music, and Apple Music. Private playlists can't be read, so make sure sharing is set to public.</p></div>
+                  <div className="faq-item"><strong>Which playlists can I import?</strong><p>Public or unlisted YouTube playlists, including YouTube Music playlist links. Private playlists can't be read, so set the playlist to Public or Unlisted first.</p></div>
                   <div className="faq-item"><strong>Do songs play in order?</strong><p>Yes. Tracks auto-advance sequentially and loop back to the start. Tap the shuffle button for a random order, or the repeat button to keep replaying the current song.</p></div>
                   <div className="faq-item"><strong>Can I go back to the default songs?</strong><p>Anytime. Choose <strong>Gedi Preset: 2010–2014</strong> in the Source selector.</p></div>
                   <div className="faq-item"><strong>What does Baarish? do?</strong><p>It adds a soft ambient rain layer over the music, with its own volume control.</p></div>
-                  <div className="faq-item"><strong>Why won't my link import?</strong><p>Check that the playlist is public, the link is the full playlist URL (not a single track), and the platform is one of the three supported ones.</p></div>
+                  <div className="faq-item"><strong>Why won't my link import?</strong><p>Check that the playlist is Public or Unlisted, and that the link is the full YouTube playlist URL (it contains <strong>list=</strong>).</p></div>
                 </div>
               </>
             )}
@@ -641,4 +641,4 @@ export default function Home() {
       />
     </main>
   );
-}
+} 

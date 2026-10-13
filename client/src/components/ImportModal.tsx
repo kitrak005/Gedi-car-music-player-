@@ -2,11 +2,7 @@ import React, { useState } from "react";
 import {
   AlertCircle,
   Check,
-  Disc,
-  ExternalLink,
-  ListMusic,
   Loader2,
-  Music,
   Radio,
   Sparkles,
   X,
@@ -17,7 +13,7 @@ import { fetchPlaylistFromUrl, parsePlaylistUrl } from "../utils/playlistImport"
 interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImportSuccess: (name: string, tracks: Track[], source: "youtube" | "spotify" | "applemusic", url: string) => void;
+  onImportSuccess: (name: string, tracks: Track[], source: "youtube", url: string) => void;
 }
 
 export const ImportModal: React.FC<ImportModalProps> = ({
@@ -37,13 +33,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     if (e) e.preventDefault();
     const trimmed = urlInput.trim();
     if (!trimmed) {
-      setError("Please paste a valid public playlist link to tune in.");
+      setError("Please paste a public YouTube playlist link to tune in.");
       return;
     }
 
     const parsed = parsePlaylistUrl(trimmed);
     if (!parsed) {
-      setError("Unrecognized link. We support YouTube / YouTube Music, Spotify, and Apple Music.");
+      setError("Unrecognized link. Please paste a YouTube or YouTube Music playlist link.");
       return;
     }
 
@@ -61,7 +57,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     } catch (err: any) {
       setError(
         err?.message ||
-          "Could not tune into this frequency. Make sure the playlist is public or unlisted."
+        "Could not tune into this frequency. Make sure the playlist is public or unlisted."
       );
     } finally {
       setIsLoading(false);
@@ -71,12 +67,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const handleConfirmSave = () => {
     if (!previewResult) return;
     const finalName = customName.trim() || previewResult.playlistName || "Custom Station";
-    onImportSuccess(
-      finalName,
-      previewResult.tracks,
-      previewResult.source,
-      previewResult.originalUrl
-    );
+    onImportSuccess(finalName, previewResult.tracks, "youtube", previewResult.originalUrl);
     handleResetAndClose();
   };
 
@@ -129,7 +120,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         </span>
         <h2 style={{ margin: "10px 0 6px", fontSize: "28px" }}>Tune A Custom Station</h2>
         <p style={{ margin: "0 0 18px", fontSize: "14px", color: "rgba(255, 248, 232, 0.68)" }}>
-          Paste any public playlist link from <strong>YouTube</strong>, <strong>Spotify</strong>, or <strong>Apple Music</strong>. No login needed.
+          Paste a public <strong>YouTube</strong> or <strong>YouTube Music</strong> playlist link. The playlist must be set to <strong>Public</strong> or <strong>Unlisted</strong>. No login needed.
         </p>
 
         {/* Input Form */}
@@ -174,7 +165,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             )}
           </div>
 
-          {/* Quick preset examples */}
+          {/* Quick preset example */}
           {!previewResult && !isLoading && (
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", fontSize: "11px" }}>
               <span style={{ color: "rgba(255, 248, 232, 0.4)", fontFamily: "'DM Mono', monospace" }}>Try link:</span>
@@ -193,22 +184,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 }}
               >
                 Pee Loon (YouTube)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickSample("https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M")}
-                style={{
-                  background: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid rgba(255, 248, 232, 0.12)",
-                  padding: "3px 8px",
-                  borderRadius: "6px",
-                  color: "var(--accent)",
-                  cursor: "pointer",
-                  fontFamily: "'DM Mono', monospace",
-                  fontSize: "10px",
-                }}
-              >
-                Spotify Classics
               </button>
             </div>
           )}
@@ -307,7 +282,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   textTransform: "uppercase",
                 }}
               >
-                Source: {previewResult.source}
+                Source: YouTube
               </span>
             </div>
 

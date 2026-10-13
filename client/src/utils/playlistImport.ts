@@ -1,16 +1,17 @@
 import { ImportPlaylistResult, Track } from "../types/track";
 
-export type PlaylistSource = "youtube" | "spotify" | "applemusic";
+export type PlaylistSource = "youtube";
 
 interface ParsedUrlInfo {
   source: PlaylistSource;
   id: string;
-  type: "playlist" | "track" | "album";
+  type: "playlist" | "track";
   originalUrl: string;
 }
 
 /**
- * Identify and parse streaming URL from YouTube, Spotify, or Apple Music.
+ * Identify and parse a YouTube / YouTube Music URL (playlist or single video).
+ * Returns null for anything else.
  */
 export function parsePlaylistUrl(rawUrl: string): ParsedUrlInfo | null {
   const url = rawUrl.trim();
@@ -22,89 +23,58 @@ export function parsePlaylistUrl(rawUrl: string): ParsedUrlInfo | null {
     const pathname = parsed.pathname;
     const searchParams = parsed.searchParams;
 
-    // 1. YouTube & YouTube Music
-    if (
-      host.includes("youtube.com") ||
-      host.includes("youtu.be") ||
-      host.includes("music.youtube.com")
-    ) {
-      // Check for playlist list parameter first
-      const listId = searchParams.get("list");
-      if (listId && listId !== "WL" && listId !== "LL") {
-        return {
-          source: "youtube",
-          id: listId,
-          type: "playlist",
-          originalUrl: url,
-        };
-      }
+    const isYouTube =
+      host === "youtu.be" ||
+      host === "youtube.com" ||
+      host.endsWith(".youtube.com");
 
-      // Check for single video watch
-      if (searchParams.get("v")) {
+    if (!isYouTube) return null;
+
+    // Check for playlist list parameter first
+    const listId = searchParams.get("list");
+    if (listId && listId !== "WL" && listId !== "LL") {
+      return {
+        source: "youtube",
+        id: listId,
+        type: "playlist",
+        originalUrl: url,
+      };
+    }
+
+    // Check for single video watch
+    if (searchParams.get("v")) {
+      return {
+        source: "youtube",
+        id: searchParams.get("v")!,
+        type: "track",
+        originalUrl: url,
+      };
+    }
+
+    // Short youtu.be/VIDEO_ID
+    if (host === "youtu.be") {
+      const videoId = pathname.replace(/^\//, "").split("/")[0];
+      if (videoId) {
         return {
           source: "youtube",
-          id: searchParams.get("v")!,
+          id: videoId,
           type: "track",
           originalUrl: url,
         };
       }
-
-      // Short youtu.be/VIDEO_ID
-      if (host.includes("youtu.be")) {
-        const videoId = pathname.replace(/^\//, "").split("/")[0];
-        if (videoId) {
-          return {
-            source: "youtube",
-            id: videoId,
-            type: "track",
-            originalUrl: url,
-          };
-        }
-      }
-
-      // Path playlist/ID
-      if (pathname.includes("/playlist")) {
-        const id = searchParams.get("list") || pathname.split("/").pop();
-        if (id) {
-          return {
-            source: "youtube",
-            id,
-            type: "playlist",
-            originalUrl: url,
-          };
-        }
-      }
     }
 
-    // 2. Spotify
-    if (host.includes("spotify.com")) {
-      const match = pathname.match(/\/(playlist|track|album)\/([a-zA-Z0-9]+)/);
-      if (match) {
+    // Path playlist/ID
+    if (pathname.includes("/playlist")) {
+      const id = searchParams.get("list") || pathname.split("/").pop();
+      if (id) {
         return {
-          source: "spotify",
-          type: match[1] as "playlist" | "track" | "album",
-          id: match[2],
+          source: "youtube",
+          id,
+          type: "playlist",
           originalUrl: url,
         };
       }
-    }
-
-    // 3. Apple Music
-    if (
-      host.includes("music.apple.com") ||
-      (host.includes("apple.com") &&
-        (pathname.includes("/playlist/") || pathname.includes("/album/")))
-    ) {
-      const isPlaylist = pathname.includes("/playlist/");
-      const isAlbum = pathname.includes("/album/");
-      const segments = pathname.split("/").filter(Boolean);
-      const id = segments[segments.length - 1] || segments[segments.length - 2] || "playlist";
-      return {
-        source: "applemusic",
-        type: isAlbum ? "album" : "playlist",
-        id,
-        originalUrl: url,
-      };
     }
 
     return null;
@@ -114,7 +84,7 @@ export function parsePlaylistUrl(rawUrl: string): ParsedUrlInfo | null {
 }
 
 /**
- * Fetch YouTube tracks using Invidious / Piped / YouTube Data API.
+ * Fetch YouTube tracks using the YouTube Data API (if a key is set) or public Invidious / Piped instances.
  */
 async function fetchYouTubeTracks(info: ParsedUrlInfo): Promise<ImportPlaylistResult> {
   const apiKey = (import.meta as any).env?.VITE_YOUTUBE_API_KEY;
@@ -155,7 +125,7 @@ async function fetchYouTubeTracks(info: ParsedUrlInfo): Promise<ImportPlaylistRe
           originalUrl: info.originalUrl,
         };
       }
-    } catch {}
+    } catch { }
 
     // Fallback single track
     const track: Track = {
@@ -201,7 +171,7 @@ async function fetchYouTubeTracks(info: ParsedUrlInfo): Promise<ImportPlaylistRe
             const metaData = await metaRes.json();
             playlistName = metaData.items?.[0]?.snippet?.title || playlistName;
           }
-        } catch {}
+        } catch { }
 
         const tracks: Track[] = (data.items || [])
           .filter((item: any) => item.snippet?.resourceId?.videoId)
@@ -304,7 +274,7 @@ async function fetchYouTubeTracks(info: ParsedUrlInfo): Promise<ImportPlaylistRe
           }
         }
       }
-    } catch {}
+    } catch { }
   }
 
   // Case D: Try oEmbed on playlist
@@ -340,143 +310,20 @@ async function fetchYouTubeTracks(info: ParsedUrlInfo): Promise<ImportPlaylistRe
         };
       }
     }
-  } catch {}
+  } catch { }
 
   throw new Error(
-    "Unable to fetch YouTube playlist tracks. Please check if the playlist is public and unlisted/not private."
+    "Unable to fetch YouTube playlist tracks. Please check that the playlist is Public or Unlisted (not Private)."
   );
 }
 
 /**
- * Fetch Spotify playlist or track metadata via public oEmbed.
- */
-async function fetchSpotifyTracks(info: ParsedUrlInfo): Promise<ImportPlaylistResult> {
-  const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(
-    info.originalUrl
-  )}`;
-
-  try {
-    const res = await fetch(oembedUrl);
-    if (!res.ok) {
-      throw new Error("Spotify playlist could not be resolved or is private.");
-    }
-    const data = await res.json();
-    const playlistName = data.title || "Spotify Station";
-    const cover = data.thumbnail_url || "/themes/night-drive.jpg";
-
-    // Split title if it contains artist information
-    let mainTitle = playlistName;
-    let artist = "Spotify Playlist";
-
-    if (playlistName.includes(" - ")) {
-      const parts = playlistName.split(" - ");
-      mainTitle = parts[0].trim();
-      artist = parts.slice(1).join(" - ").trim();
-    } else if (playlistName.includes(" by ")) {
-      const parts = playlistName.split(" by ");
-      mainTitle = parts[0].trim();
-      artist = parts[1].trim();
-    }
-
-    // Create track for this imported station
-    const track: Track = {
-      id: `spotify-${info.id}`,
-      title: mainTitle,
-      artist,
-      album: playlistName,
-      coverUrl: cover,
-      // Stream ID fallback (Bollywood/Retro station default or search fallback)
-      streamId: "WCTro3qabjE",
-      source: "spotify",
-      year: new Date().getFullYear(),
-      film: "Spotify Import",
-      credits: `Spotify: ${playlistName}`,
-      officialUrl: info.originalUrl,
-      youtubeId: "WCTro3qabjE",
-      cover,
-    };
-
-    return {
-      playlistName,
-      source: "spotify",
-      tracks: [track],
-      originalUrl: info.originalUrl,
-    };
-  } catch (error: any) {
-    throw new Error(
-      error?.message || "Failed to import Spotify playlist. Ensure it is a public link."
-    );
-  }
-}
-
-/**
- * Fetch Apple Music playlist/album metadata.
- */
-async function fetchAppleMusicTracks(info: ParsedUrlInfo): Promise<ImportPlaylistResult> {
-  try {
-    // Attempt noembed / oembed for Apple Music
-    const res = await fetch(
-      `https://noembed.com/embed?url=${encodeURIComponent(info.originalUrl)}`
-    );
-    let title = "Apple Music Station";
-    let artist = "Apple Music";
-    let cover = "/themes/monsoon-route.jpg";
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data.title) title = data.title;
-      if (data.author_name) artist = data.author_name;
-      if (data.thumbnail_url) cover = data.thumbnail_url;
-    }
-
-    const track: Track = {
-      id: `apple-${info.id}-${Date.now()}`,
-      title,
-      artist,
-      album: title,
-      coverUrl: cover,
-      streamId: "WCTro3qabjE",
-      source: "applemusic",
-      year: new Date().getFullYear(),
-      film: "Apple Music Import",
-      credits: `Apple Music: ${title}`,
-      officialUrl: info.originalUrl,
-      youtubeId: "WCTro3qabjE",
-      cover,
-    };
-
-    return {
-      playlistName: title,
-      source: "applemusic",
-      tracks: [track],
-      originalUrl: info.originalUrl,
-    };
-  } catch (error: any) {
-    throw new Error(
-      error?.message || "Failed to load Apple Music link. Make sure the playlist is public."
-    );
-  }
-}
-
-/**
- * Main parser and loader for any supported public streaming URL.
+ * Main parser and loader for a public YouTube / YouTube Music link.
  */
 export async function fetchPlaylistFromUrl(url: string): Promise<ImportPlaylistResult> {
   const parsed = parsePlaylistUrl(url);
   if (!parsed) {
-    throw new Error(
-      "Unsupported link. Please paste a public YouTube, YouTube Music, Spotify, or Apple Music link."
-    );
+    throw new Error("Unsupported link. Please paste a public YouTube or YouTube Music playlist link.");
   }
-
-  switch (parsed.source) {
-    case "youtube":
-      return fetchYouTubeTracks(parsed);
-    case "spotify":
-      return fetchSpotifyTracks(parsed);
-    case "applemusic":
-      return fetchAppleMusicTracks(parsed);
-    default:
-      throw new Error("Unsupported streaming platform.");
-  }
+  return fetchYouTubeTracks(parsed);
 }

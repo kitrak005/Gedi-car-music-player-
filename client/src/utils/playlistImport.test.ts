@@ -40,23 +40,11 @@ describe("parsePlaylistUrl", () => {
     expect(parsed?.id).toBe("WCTro3qabjE");
   });
 
-  it("should parse Spotify playlist URL", () => {
-    const parsed = parsePlaylistUrl(
-      "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=12345"
-    );
-    expect(parsed).not.toBeNull();
-    expect(parsed?.source).toBe("spotify");
-    expect(parsed?.type).toBe("playlist");
-    expect(parsed?.id).toBe("37i9dQZF1DXcBWIGoYBM5M");
-  });
-
-  it("should parse Apple Music playlist URL", () => {
-    const parsed = parsePlaylistUrl(
-      "https://music.apple.com/us/playlist/pure-ambient/pl.u-aZb0DXDsP8L4X"
-    );
-    expect(parsed).not.toBeNull();
-    expect(parsed?.source).toBe("applemusic");
-    expect(parsed?.type).toBe("playlist");
+  it("should return null for non-YouTube music links", () => {
+    expect(parsePlaylistUrl("https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M")).toBeNull();
+    expect(
+      parsePlaylistUrl("https://music.apple.com/us/playlist/pure-ambient/pl.u-aZb0DXDsP8L4X")
+    ).toBeNull();
   });
 
   it("should return null for invalid URL", () => {

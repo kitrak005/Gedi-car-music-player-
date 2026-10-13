@@ -339,7 +339,7 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
               transition: "background 0.2s ease",
             }}
           >
-            <Plus size={14} /> Tune New Link (YT / Spotify / Apple)
+            <Plus size={14} /> Tune New Link (YouTube Playlist)
           </button>
         </div>
       )}
