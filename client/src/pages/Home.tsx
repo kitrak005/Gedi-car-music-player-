@@ -94,6 +94,13 @@ const formatTime = (value: number) => {
   return `${minutes}:${seconds}`;
 };
 
+declare global {
+  interface Window {
+    YT?: any;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
 export default function Home() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -109,16 +116,51 @@ export default function Home() {
   const [embedOpen, setEmbedOpen] = useState(false);
   const rainAudioRef = useRef<HTMLAudioElement>(null);
   const youtubeFrameRef = useRef<HTMLIFrameElement>(null);
+  const ytPlayerRef = useRef<any>(null);
+  const tracksRef = useRef<Track[]>(tracks);
+  tracksRef.current = tracks;
+  const activeIndexRef = useRef<number>(activeIndex);
+  activeIndexRef.current = activeIndex;
+  const lastShuffleTimeRef = useRef<number>(0);
 
   const theme = themes[themeIndex];
   const activeTrack = tracks[activeIndex] ?? fallbackTrack;
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  const youtubeParams = useMemo(() => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return new URLSearchParams({
+      autoplay: "1",
+      controls: "0",
+      disablekb: "1",
+      modestbranding: "1",
+      rel: "0",
+      playsinline: "1",
+      iv_load_policy: "3",
+      fs: "0",
+      enablejsapi: "1",
+      origin: origin,
+      widget_referrer: origin,
+    }).toString();
+  }, []);
 
   useEffect(() => {
     fetch("/songs.json")
       .then((response) => response.json())
       .then((data: Track[]) => setTracks(data))
       .catch(() => setTracks([fallbackTrack]));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !window.YT) {
+      const existing = document.querySelector('script[src*="youtube.com/iframe_api"]');
+      if (!existing) {
+        const tag = document.createElement("script");
+        tag.src = "https://www.youtube.com/iframe_api";
+        tag.async = true;
+        document.body.appendChild(tag);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -136,8 +178,129 @@ export default function Home() {
   const changeTheme = () => setThemeIndex((value) => (value + 1) % themes.length);
 
   const sendYoutubeCommand = (func: "playVideo" | "pauseVideo") => {
+    if (ytPlayerRef.current && typeof ytPlayerRef.current[func] === "function") {
+      try {
+        ytPlayerRef.current[func]();
+        return;
+      } catch {}
+    }
     youtubeFrameRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args: [] }), "*");
   };
+
+  const playRandomTrack = () => {
+    const currentTracks = tracksRef.current;
+    const currentIdx = activeIndexRef.current;
+    if (!currentTracks.length) return;
+
+    let nextIdx = currentIdx;
+    if (currentTracks.length > 1) {
+      const candidates = currentTracks
+        .map((_, idx) => idx)
+        .filter((idx) => idx !== currentIdx);
+      nextIdx = candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    setActiveIndex(nextIdx);
+    setEmbedOpen(true);
+    setIsPlaying(true);
+
+    const nextTrack = currentTracks[nextIdx];
+    if (nextTrack?.youtubeId && ytPlayerRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
+      try {
+        ytPlayerRef.current.loadVideoById(nextTrack.youtubeId);
+      } catch {
+        // Fallback to React re-render of iframe src
+      }
+    }
+  };
+
+  const handlePlayerStateChange = (eventData: number) => {
+    const YT_ENDED = window.YT?.PlayerState ? window.YT.PlayerState.ENDED : 0;
+    const YT_PLAYING = window.YT?.PlayerState ? window.YT.PlayerState.PLAYING : 1;
+    const YT_PAUSED = window.YT?.PlayerState ? window.YT.PlayerState.PAUSED : 2;
+
+    if (eventData === YT_ENDED) {
+      const now = Date.now();
+      if (now - lastShuffleTimeRef.current < 1500) return;
+      lastShuffleTimeRef.current = now;
+      playRandomTrack();
+    } else if (eventData === YT_PLAYING) {
+      setIsPlaying(true);
+    } else if (eventData === YT_PAUSED) {
+      setIsPlaying(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!embedOpen || !activeTrack.youtubeId) return;
+
+    let playerInstance: any = null;
+    let isCancelled = false;
+
+    const bindPlayer = () => {
+      if (isCancelled) return true;
+      if (!window.YT || !window.YT.Player || !youtubeFrameRef.current) return false;
+
+      try {
+        playerInstance = new window.YT.Player(youtubeFrameRef.current, {
+          events: {
+            onReady: (event: any) => {
+              if (isCancelled) return;
+              ytPlayerRef.current = event.target;
+              if (isPlaying) {
+                event.target.playVideo?.();
+              }
+            },
+            onStateChange: (event: any) => {
+              if (isCancelled) return;
+              handlePlayerStateChange(event.data);
+            },
+          },
+        });
+        ytPlayerRef.current = playerInstance;
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!bindPlayer()) {
+      const pollId = setInterval(() => {
+        if (bindPlayer()) {
+          clearInterval(pollId);
+        }
+      }, 200);
+
+      return () => {
+        isCancelled = true;
+        clearInterval(pollId);
+        try {
+          playerInstance?.destroy?.();
+        } catch {}
+      };
+    }
+
+    return () => {
+      isCancelled = true;
+      try {
+        playerInstance?.destroy?.();
+      } catch {}
+    };
+  }, [embedOpen, activeTrack.youtubeId]);
+
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      try {
+        const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+        if (data?.event === "onStateChange" && typeof data.info === "number") {
+          handlePlayerStateChange(data.info);
+        }
+      } catch {}
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   const togglePlay = () => {
     if (activeTrack.youtubeId) {
@@ -148,6 +311,12 @@ export default function Home() {
       }
       setEmbedOpen(true);
       setIsPlaying(true);
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === "function") {
+        try {
+          ytPlayerRef.current.playVideo();
+          return;
+        } catch {}
+      }
       window.setTimeout(() => sendYoutubeCommand("playVideo"), 120);
       return;
     }
@@ -155,9 +324,20 @@ export default function Home() {
   };
 
   const goToTrack = (direction: number) => {
-    if (!tracks.length) return;
-    setActiveIndex((value) => (value + direction + tracks.length) % tracks.length);
-    setIsPlaying(embedOpen);
+    const currentTracks = tracksRef.current;
+    if (!currentTracks.length) return;
+    const nextIdx = (activeIndexRef.current + direction + currentTracks.length) % currentTracks.length;
+    setActiveIndex(nextIdx);
+    const nextTrack = currentTracks[nextIdx];
+    if (embedOpen) {
+      setIsPlaying(true);
+      if (nextTrack?.youtubeId && ytPlayerRef.current && typeof ytPlayerRef.current.loadVideoById === "function") {
+        try {
+          ytPlayerRef.current.loadVideoById(nextTrack.youtubeId);
+          return;
+        } catch {}
+      }
+    }
   };
 
   const playerStyle = useMemo(
@@ -209,7 +389,7 @@ export default function Home() {
       </section>
 
       <div className="floating-note glass-card">
-        <div className="note-kicker"><Mic2 size={12} /> NOW BROADCASTING</div>
+        <div className="note-kicker"><Mic2 size={13} /> NOW BROADCASTING</div>
         <strong>{activeTrack.title}</strong>
         <span>{activeTrack.year} / {activeTrack.film}</span>
         <div className="signal-bars" aria-hidden="true"><i /><i /><i /><i /><i /></div>
@@ -251,7 +431,40 @@ export default function Home() {
         </div>
 
         <div className="player-source-column">
-          {embedOpen && activeTrack.youtubeId ? <div className="youtube-inline"><div className="youtube-inline-head"><span>{isPlaying ? "PLAYING IN GEDI" : "PAUSED"}</span><button className="inline-close" onClick={() => { sendYoutubeCommand("pauseVideo"); setEmbedOpen(false); setIsPlaying(false); }} aria-label="Close embedded player"><X size={12} /></button></div><iframe ref={youtubeFrameRef} title={`${activeTrack.title} official video`} src={`https://www.youtube.com/embed/${activeTrack.youtubeId}?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&widget_referrer=${encodeURIComponent(window.location.origin)}`} referrerPolicy="origin" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen /></div> : <button className="official-link" onClick={togglePlay}><Play size={16} fill="currentColor" /> Play here</button>}
+          {embedOpen && activeTrack.youtubeId ? (
+            <div className="youtube-inline">
+              <div className="youtube-inline-head">
+                <span>{isPlaying ? "PLAYING IN GEDI" : "PAUSED"}</span>
+                <button
+                  className="inline-close"
+                  onClick={() => {
+                    sendYoutubeCommand("pauseVideo");
+                    setEmbedOpen(false);
+                    setIsPlaying(false);
+                  }}
+                  aria-label="Close embedded player"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              <div className="youtube-media-wrapper">
+                <iframe
+                  ref={youtubeFrameRef}
+                  id="gedi-youtube-player"
+                  title={`${activeTrack.title} official video`}
+                  src={`https://www.youtube.com/embed/${activeTrack.youtubeId}?${youtubeParams}`}
+                  referrerPolicy="origin"
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                />
+                <div className="youtube-touch-shield" aria-hidden="true" />
+              </div>
+            </div>
+          ) : (
+            <button className="official-link" onClick={togglePlay}>
+              <Play size={16} fill="currentColor" /> Play here
+            </button>
+          )}
         </div>
       </section>
 
