@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
-  ArrowDown,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -15,6 +14,9 @@ import {
   Play,
   Plus,
   Radio,
+  Repeat,
+  Repeat1,
+  Shuffle,
   X,
 } from "lucide-react";
 import { SavedPlaylist, Track } from "../types/track";
@@ -123,6 +125,8 @@ export default function Home() {
   const [modal, setModal] = useState<ModalType>(null);
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [embedOpen, setEmbedOpen] = useState(false);
+  const [shuffleOn, setShuffleOn] = useState(false);
+  const [repeatOne, setRepeatOne] = useState(false);
   const rainAudioRef = useRef<HTMLAudioElement>(null);
   const youtubeFrameRef = useRef<HTMLIFrameElement>(null);
 
@@ -145,6 +149,10 @@ export default function Home() {
   tracksRef.current = tracks;
   const activeIndexRef = useRef<number>(activeIndex);
   activeIndexRef.current = activeIndex;
+  const shuffleOnRef = useRef<boolean>(shuffleOn);
+  shuffleOnRef.current = shuffleOn;
+  const repeatOneRef = useRef<boolean>(repeatOne);
+  repeatOneRef.current = repeatOne;
   const lastShuffleTimeRef = useRef<number>(0);
 
   const theme = themes[themeIndex];
@@ -219,16 +227,19 @@ export default function Home() {
     navigator.clipboard?.writeText("joshikartik.1925@gmail.com").then(() => {
       setCopiedEmail(true);
       setTimeout(() => setCopiedEmail(false), 2000);
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
-  const sendYoutubeCommand = (func: "playVideo" | "pauseVideo") => {
+  const sendYoutubeCommand = (
+    func: "playVideo" | "pauseVideo" | "seekTo",
+    args: unknown[] = []
+  ) => {
     try {
       youtubeFrameRef.current?.contentWindow?.postMessage(
-        JSON.stringify({ event: "command", func, args: [] }),
+        JSON.stringify({ event: "command", func, args }),
         "*"
       );
-    } catch {}
+    } catch { }
   };
 
   const notifyIframeListening = () => {
@@ -237,14 +248,26 @@ export default function Home() {
         JSON.stringify({ event: "listening", id: 1 }),
         "*"
       );
-    } catch {}
+    } catch { }
   };
 
-  // Continuous auto-advance: (currentTrackIndex + 1) % activePlaylist.length
+  // Picks a random index that differs from the current one (when possible)
+  const pickShuffleIndex = (length: number, current: number) => {
+    if (length <= 1) return 0;
+    let next = current;
+    while (next === current) {
+      next = Math.floor(Math.random() * length);
+    }
+    return next;
+  };
+
+  // Continuous auto-advance: sequential (currentTrackIndex + 1) % length, or random when shuffle is on
   const advanceToNextTrack = () => {
     const currentTracks = tracksRef.current;
     if (!currentTracks.length) return;
-    const nextIdx = (activeIndexRef.current + 1) % currentTracks.length;
+    const nextIdx = shuffleOnRef.current
+      ? pickShuffleIndex(currentTracks.length, activeIndexRef.current)
+      : (activeIndexRef.current + 1) % currentTracks.length;
     setActiveIndex(nextIdx);
     setEmbedOpen(true);
     setIsPlaying(true);
@@ -259,6 +282,13 @@ export default function Home() {
       const now = Date.now();
       if (now - lastShuffleTimeRef.current < 2000) return;
       lastShuffleTimeRef.current = now;
+      if (repeatOneRef.current) {
+        // Repeat current song
+        sendYoutubeCommand("seekTo", [0, true]);
+        sendYoutubeCommand("playVideo");
+        setIsPlaying(true);
+        return;
+      }
       advanceToNextTrack();
     } else if (eventData === YT_PLAYING || eventData === 1) {
       setIsPlaying(true);
@@ -284,7 +314,7 @@ export default function Home() {
             handlePlayerStateChange(state);
           }
         }
-      } catch {}
+      } catch { }
     };
 
     window.addEventListener("message", onMessage);
@@ -322,7 +352,10 @@ export default function Home() {
   const goToTrack = (direction: number) => {
     const currentTracks = tracksRef.current;
     if (!currentTracks.length) return;
-    const nextIdx = (activeIndexRef.current + direction + currentTracks.length) % currentTracks.length;
+    const nextIdx =
+      shuffleOnRef.current && direction > 0
+        ? pickShuffleIndex(currentTracks.length, activeIndexRef.current)
+        : (activeIndexRef.current + direction + currentTracks.length) % currentTracks.length;
     setActiveIndex(nextIdx);
     setEmbedOpen(true);
     setIsPlaying(true);
@@ -384,11 +417,14 @@ export default function Home() {
       {rainOn && <div className="rain-overlay" aria-hidden="true" />}
 
       <header className="topbar">
-        <div className="listener-pill glass-pill" aria-label="gedi demo radio signal">
-          <strong className="brand-word">गेड़ी</strong>
-          <span className="top-divider" />
-          <span className="live-dot" />
-          <span className="muted-label">demo signal</span>
+        <div className="topbar-source">
+          <PlaylistSelector
+            activePlaylistId={activePlaylistId}
+            customPlaylists={customPlaylists}
+            onSelectPlaylist={handleSelectPlaylist}
+            onDeletePlaylist={handleDeletePlaylist}
+            onOpenImportModal={() => setIsImportModalOpen(true)}
+          />
         </div>
 
         <button className="theme-pill glass-pill" onClick={changeTheme} aria-label={`Change theme, current ${theme.name}`}>
@@ -410,6 +446,28 @@ export default function Home() {
         <div className="station-label"><span /> {theme.eyebrow} <span /></div>
         <h1 id="station-title">कार <em>रेडियो</em></h1>
         <p>सड़क से सीधे, एक गीत और.</p>
+
+        <div className="utility-row" role="group" aria-label="Station actions">
+          <button className={`utility-pill ${rainOn ? "active" : ""}`} onClick={() => setRainOn((value) => !value)} aria-pressed={rainOn}>
+            <CloudRain size={15} /> Baarish? <span className="utility-status">{rainOn ? "on" : "off"}</span>
+          </button>
+          <button
+            className="utility-pill"
+            onClick={() => setIsImportModalOpen(true)}
+            aria-label="Tune custom playlist link"
+          >
+            <Plus size={13} /> Tune Link
+          </button>
+        </div>
+
+        {rainOn && (
+          <div className="rain-control glass-card">
+            <div><CloudRain size={14} /><span>Rain ambience</span></div>
+            <input aria-label="Rain ambience volume" type="range" min="0" max="1" step="0.01" value={rainVolume} onChange={(event) => setRainVolume(Number(event.target.value))} />
+            <span>{Math.round(rainVolume * 100)}%</span>
+          </div>
+        )}
+
         <div className="hero-rule"><span /> <Radio size={15} /> <span /></div>
       </section>
 
@@ -419,34 +477,6 @@ export default function Home() {
         <span>{activeTrack.year ? `${activeTrack.year} / ` : ""}{activeTrack.film || activeTrack.album || "Airwaves"}</span>
         <div className="signal-bars" aria-hidden="true"><i /><i /><i /><i /><i /></div>
       </div>
-
-      <section className="utility-row" aria-label="Station actions">
-        <PlaylistSelector
-          activePlaylistId={activePlaylistId}
-          customPlaylists={customPlaylists}
-          onSelectPlaylist={handleSelectPlaylist}
-          onDeletePlaylist={handleDeletePlaylist}
-          onOpenImportModal={() => setIsImportModalOpen(true)}
-        />
-        <button className={`utility-pill ${rainOn ? "active" : ""}`} onClick={() => setRainOn((value) => !value)} aria-pressed={rainOn}>
-          <CloudRain size={15} /> Baarish? <span className="utility-status">{rainOn ? "on" : "off"}</span>
-        </button>
-        <button
-          className="utility-pill"
-          onClick={() => setIsImportModalOpen(true)}
-          aria-label="Tune custom playlist link"
-        >
-          <Plus size={13} /> Tune Link
-        </button>
-      </section>
-
-      {rainOn && (
-        <div className="rain-control glass-card">
-          <div><CloudRain size={14} /><span>Rain ambience</span></div>
-          <input aria-label="Rain ambience volume" type="range" min="0" max="1" step="0.01" value={rainVolume} onChange={(event) => setRainVolume(Number(event.target.value))} />
-          <span>{Math.round(rainVolume * 100)}%</span>
-        </div>
-      )}
 
       <section className="player-shell glass-card" aria-label="Audio player">
         <div className="track-block">
@@ -474,9 +504,27 @@ export default function Home() {
             )}
           </div>
           <div className="player-buttons">
+            <button
+              className={`icon-button ${shuffleOn ? "is-active" : ""}`}
+              onClick={() => setShuffleOn((value) => !value)}
+              aria-pressed={shuffleOn}
+              aria-label={shuffleOn ? "Shuffle on" : "Shuffle off"}
+              title="Shuffle"
+            >
+              <Shuffle size={15} />
+            </button>
             <button className="icon-button" onClick={() => goToTrack(-1)} aria-label="Previous song"><ChevronLeft size={19} /></button>
             <button className="play-button" onClick={togglePlay} aria-label={isPlaying ? "Pause official song" : "Play official song inside gedi"}>{isPlaying ? <Pause size={21} fill="currentColor" /> : <Play size={21} fill="currentColor" />}</button>
             <button className="icon-button" onClick={() => goToTrack(1)} aria-label="Next song"><ChevronRight size={19} /></button>
+            <button
+              className={`icon-button ${repeatOne ? "is-active" : ""}`}
+              onClick={() => setRepeatOne((value) => !value)}
+              aria-pressed={repeatOne}
+              aria-label={repeatOne ? "Repeat current song on" : "Repeat current song off"}
+              title={repeatOne ? "Repeating this song" : "Repeat this song"}
+            >
+              {repeatOne ? <Repeat1 size={15} /> : <Repeat size={15} />}
+            </button>
           </div>
         </div>
 
@@ -524,8 +572,34 @@ export default function Home() {
         <div className="modal-backdrop" role="presentation" onClick={() => setModal(null)}>
           <div className="info-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
             <button className="close-button modal-close" onClick={() => setModal(null)} aria-label="Close dialog"><X size={18} /></button>
-            {modal === "about" && <><span className="eyebrow"><Info size={12} /> ABOUT GEDI</span><h2>Some songs never really leave.</h2><p>gedi is a small online radio for the songs that played through dashboard speakers, laptop speakers, and cracked phone screens between 2010 and 2014.</p><p>No algorithmic panic. Just a warm loop of Bollywood pop, old road textures, and one more song before you reach home.</p><div className="modal-signoff">— transmitting from the driver's seat, always</div></>}
-            {modal === "faq" && <><span className="eyebrow"><CircleHelp size={12} /> FREQUENTLY ASKED</span><h2>Good questions, late answers.</h2><div className="faq-item"><strong>Is this a real stream?</strong><p>It is a playful demo station with official song sources and a curated 2010–14 playlist.</p></div><div className="faq-item"><strong>What does Baarish? do?</strong><p>It adds a soft ambient rain layer over the music, with its own volume control.</p></div></>}
+
+            {modal === "about" && (
+              <>
+                <span className="eyebrow"><Info size={12} /> ABOUT GEDI</span>
+                <h2>Some songs never really leave.</h2>
+                <p>gedi is a small online radio for the songs that played through dashboard speakers, laptop speakers, and cracked phone screens. Out of the box it plays a curated Bollywood preset from 2010 to 2014.</p>
+                <p>Now the radio is yours too. Use the <strong>Source</strong> selector in the top-left corner to switch between the Gedi Preset and your own imported playlists. Tap <strong>+ Tune Link</strong>, paste a public playlist link from Spotify, YouTube Music, or Apple Music, and gedi tunes in. Songs auto-advance one after another, with shuffle and repeat whenever you want them.</p>
+                <p>Turn on <strong>Baarish?</strong> for rain on the windshield, and change the scene any time with <strong>Change Theme</strong>.</p>
+                <div className="modal-signoff">— transmitting from the driver's seat, always</div>
+              </>
+            )}
+
+            {modal === "faq" && (
+              <>
+                <span className="eyebrow"><CircleHelp size={12} /> FREQUENTLY ASKED</span>
+                <h2>Good questions, late answers.</h2>
+                <div className="faq-scroll">
+                  <div className="faq-item"><strong>Is this a real stream?</strong><p>It's a playful demo station with official song sources. By default it plays a curated 2010–14 Bollywood playlist.</p></div>
+                  <div className="faq-item"><strong>How do I switch to my own playlist?</strong><p>Open the Source selector in the top-left corner and pick your imported playlist. To add one, tap <strong>+ Tune Link</strong> under the tagline, paste the link, and confirm.</p></div>
+                  <div className="faq-item"><strong>Which playlists can I import?</strong><p>Public playlists from Spotify, YouTube Music, and Apple Music. Private playlists can't be read, so make sure sharing is set to public.</p></div>
+                  <div className="faq-item"><strong>Do songs play in order?</strong><p>Yes. Tracks auto-advance sequentially and loop back to the start. Tap the shuffle button for a random order, or the repeat button to keep replaying the current song.</p></div>
+                  <div className="faq-item"><strong>Can I go back to the default songs?</strong><p>Anytime. Choose <strong>Gedi Preset: 2010–2014</strong> in the Source selector.</p></div>
+                  <div className="faq-item"><strong>What does Baarish? do?</strong><p>It adds a soft ambient rain layer over the music, with its own volume control.</p></div>
+                  <div className="faq-item"><strong>Why won't my link import?</strong><p>Check that the playlist is public, the link is the full playlist URL (not a single track), and the platform is one of the three supported ones.</p></div>
+                </div>
+              </>
+            )}
+
             {modal === "support" && (
               <>
                 <span className="eyebrow"><Heart size={12} fill="currentColor" /> KEEP THE SIGNAL WARM</span>

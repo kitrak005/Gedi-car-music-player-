@@ -2,11 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   Disc,
-  Music,
   Plus,
   Radio,
   Trash2,
-  Tv,
 } from "lucide-react";
 import { SavedPlaylist } from "../types/track";
 
@@ -56,18 +54,21 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
         className="playlist-tuner-trigger"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
+        aria-haspopup="menu"
         aria-label="Select audio source or playlist"
         style={{
           display: "inline-flex",
           alignItems: "center",
           gap: "8px",
-          padding: "6px 14px",
+          minHeight: "42px",
+          maxWidth: "100%",
+          padding: "9px 16px",
           borderRadius: "999px",
           background: "rgba(25, 19, 16, 0.72)",
           border: "1px solid rgba(255, 248, 232, 0.22)",
           backdropFilter: "blur(12px)",
           color: "#fff8ed",
-          fontSize: "11px",
+          fontSize: "12px",
           fontFamily: "'DM Mono', monospace",
           cursor: "pointer",
           transition: "all 0.2s ease",
@@ -78,6 +79,7 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
           style={{
             width: "6px",
             height: "6px",
+            flexShrink: 0,
             borderRadius: "50%",
             backgroundColor: "var(--accent)",
             boxShadow: "0 0 8px var(--accent)",
@@ -85,6 +87,7 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
           }}
         />
         <span
+          className="playlist-tuner-label"
           style={{
             color: "rgba(255, 248, 232, 0.55)",
             fontSize: "9px",
@@ -98,7 +101,7 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
           style={{
             fontWeight: 600,
             color: "#fff8ed",
-            maxWidth: "180px",
+            maxWidth: "min(220px, 38vw)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -109,6 +112,7 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
         <ChevronDown
           size={13}
           style={{
+            flexShrink: 0,
             color: "var(--accent)",
             transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
             transition: "transform 0.2s ease",
@@ -116,16 +120,18 @@ export const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
         />
       </button>
 
-      {/* Retro Dropdown Menu */}
+      {/* Retro Dropdown Menu (opens downward, left-aligned) */}
       {isOpen && (
         <div
           className="playlist-tuner-menu glass-card"
+          role="menu"
           style={{
             position: "absolute",
-            bottom: "calc(100% + 8px)",
-            left: "50%",
-            transform: "translateX(-50%)",
+            top: "calc(100% + 8px)",
+            left: 0,
+            transformOrigin: "top left",
             width: "280px",
+            maxWidth: "calc(100vw - 24px)",
             maxHeight: "340px",
             borderRadius: "12px",
             padding: "8px",
