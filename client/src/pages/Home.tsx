@@ -13,21 +13,21 @@ import {
   Mic2,
   Pause,
   Play,
+  Plus,
   Radio,
   X,
 } from "lucide-react";
+import { SavedPlaylist, Track } from "../types/track";
+import {
+  deleteCustomPlaylist,
+  getActivePlaylistId,
+  getCustomPlaylists,
+  saveCustomPlaylist,
+  setActivePlaylistId,
+} from "../utils/storage";
+import { ImportModal } from "../components/ImportModal";
+import { PlaylistSelector } from "../components/PlaylistSelector";
 
-type Track = {
-  id: string;
-  year: number;
-  title: string;
-  film: string;
-  artist: string;
-  credits: string;
-  officialUrl: string;
-  youtubeId?: string;
-  cover: string;
-};
 
 type Theme = {
   name: string;
@@ -86,7 +86,10 @@ const fallbackTrack: Track = {
   credits: "T-Series Bollywood Classics",
   officialUrl: "https://www.youtube.com/watch?v=WCTro3qabjE",
   youtubeId: "WCTro3qabjE",
+  streamId: "WCTro3qabjE",
+  source: "preset",
   cover: themes[0].image,
+  coverUrl: themes[0].image,
 };
 
 const formatTime = (value: number) => {
@@ -104,7 +107,10 @@ declare global {
 }
 
 export default function Home() {
-  const [tracks, setTracks] = useState<Track[]>([]);
+  const [presetTracks, setPresetTracks] = useState<Track[]>([]);
+  const [customPlaylists, setCustomPlaylists] = useState<SavedPlaylist[]>([]);
+  const [activePlaylistId, setActivePlaylistIdState] = useState<string>("preset");
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [themeIndex, setThemeIndex] = useState(0);
@@ -119,6 +125,22 @@ export default function Home() {
   const [embedOpen, setEmbedOpen] = useState(false);
   const rainAudioRef = useRef<HTMLAudioElement>(null);
   const youtubeFrameRef = useRef<HTMLIFrameElement>(null);
+
+  // Active playlist resolution
+  const activeCustomPlaylist = useMemo(
+    () => customPlaylists.find((p) => p.id === activePlaylistId),
+    [customPlaylists, activePlaylistId]
+  );
+
+  const tracks = useMemo(() => {
+    if (activePlaylistId === "preset" || !activeCustomPlaylist) {
+      return presetTracks.length > 0 ? presetTracks : [fallbackTrack];
+    }
+    return activeCustomPlaylist.tracks.length > 0
+      ? activeCustomPlaylist.tracks
+      : [fallbackTrack];
+  }, [activePlaylistId, activeCustomPlaylist, presetTracks]);
+
   const tracksRef = useRef<Track[]>(tracks);
   tracksRef.current = tracks;
   const activeIndexRef = useRef<number>(activeIndex);
@@ -127,6 +149,10 @@ export default function Home() {
 
   const theme = themes[themeIndex];
   const activeTrack = tracks[activeIndex] ?? fallbackTrack;
+  const streamVideoId =
+    activeTrack.youtubeId ||
+    (activeTrack.source === "youtube" ? activeTrack.streamId : fallbackTrack.youtubeId);
+
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   const youtubeParams = useMemo(() => {
@@ -146,11 +172,33 @@ export default function Home() {
     }).toString();
   }, []);
 
+  // Initialize preset tracks from songs.json
   useEffect(() => {
     fetch("/songs.json")
       .then((response) => response.json())
-      .then((data: Track[]) => setTracks(data))
-      .catch(() => setTracks([fallbackTrack]));
+      .then((data: Track[]) => {
+        const formatted = data.map((d) => ({
+          ...d,
+          streamId: d.youtubeId || d.id,
+          source: "preset" as const,
+          coverUrl: d.cover,
+        }));
+        setPresetTracks(formatted);
+      })
+      .catch(() => setPresetTracks([fallbackTrack]));
+  }, []);
+
+  // Initialize saved playlists from localStorage
+  useEffect(() => {
+    const saved = getCustomPlaylists();
+    setCustomPlaylists(saved);
+    const savedActiveId = getActivePlaylistId();
+    if (savedActiveId === "preset" || saved.some((p) => p.id === savedActiveId)) {
+      setActivePlaylistIdState(savedActiveId);
+    } else {
+      setActivePlaylistIdState("preset");
+      setActivePlaylistId("preset");
+    }
   }, []);
 
   useEffect(() => {
@@ -192,19 +240,11 @@ export default function Home() {
     } catch {}
   };
 
-  const playRandomTrack = () => {
+  // Continuous auto-advance: (currentTrackIndex + 1) % activePlaylist.length
+  const advanceToNextTrack = () => {
     const currentTracks = tracksRef.current;
-    const currentIdx = activeIndexRef.current;
     if (!currentTracks.length) return;
-
-    let nextIdx = currentIdx;
-    if (currentTracks.length > 1) {
-      const candidates = currentTracks
-        .map((_, idx) => idx)
-        .filter((idx) => idx !== currentIdx);
-      nextIdx = candidates[Math.floor(Math.random() * candidates.length)];
-    }
-
+    const nextIdx = (activeIndexRef.current + 1) % currentTracks.length;
     setActiveIndex(nextIdx);
     setEmbedOpen(true);
     setIsPlaying(true);
@@ -219,7 +259,7 @@ export default function Home() {
       const now = Date.now();
       if (now - lastShuffleTimeRef.current < 2000) return;
       lastShuffleTimeRef.current = now;
-      playRandomTrack();
+      advanceToNextTrack();
     } else if (eventData === YT_PLAYING || eventData === 1) {
       setIsPlaying(true);
     } else if (eventData === YT_PAUSED || eventData === 2) {
@@ -252,7 +292,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!embedOpen || !activeTrack.youtubeId) return;
+    if (!embedOpen || !streamVideoId) return;
     notifyIframeListening();
     const t1 = setTimeout(notifyIframeListening, 300);
     const t2 = setTimeout(notifyIframeListening, 1000);
@@ -260,10 +300,10 @@ export default function Home() {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [embedOpen, activeTrack.youtubeId]);
+  }, [embedOpen, streamVideoId]);
 
   const togglePlay = () => {
-    if (activeTrack.youtubeId) {
+    if (streamVideoId) {
       if (embedOpen && isPlaying) {
         sendYoutubeCommand("pauseVideo");
         setIsPlaying(false);
@@ -274,7 +314,9 @@ export default function Home() {
       window.setTimeout(() => sendYoutubeCommand("playVideo"), 120);
       return;
     }
-    window.open(activeTrack.officialUrl, "_blank", "noopener,noreferrer");
+    if (activeTrack.officialUrl) {
+      window.open(activeTrack.officialUrl, "_blank", "noopener,noreferrer");
+    }
   };
 
   const goToTrack = (direction: number) => {
@@ -284,6 +326,43 @@ export default function Home() {
     setActiveIndex(nextIdx);
     setEmbedOpen(true);
     setIsPlaying(true);
+  };
+
+  const handleSelectPlaylist = (playlistId: string) => {
+    setActivePlaylistIdState(playlistId);
+    setActivePlaylistId(playlistId);
+    setActiveIndex(0);
+    setEmbedOpen(true);
+    setIsPlaying(true);
+    window.setTimeout(() => sendYoutubeCommand("playVideo"), 200);
+  };
+
+  const handleDeletePlaylist = (playlistId: string) => {
+    deleteCustomPlaylist(playlistId);
+    const updated = getCustomPlaylists();
+    setCustomPlaylists(updated);
+    if (activePlaylistId === playlistId) {
+      setActivePlaylistIdState("preset");
+      setActivePlaylistId("preset");
+      setActiveIndex(0);
+    }
+  };
+
+  const handleImportSuccess = (
+    name: string,
+    importedTracks: Track[],
+    source: "youtube" | "spotify" | "applemusic",
+    url: string
+  ) => {
+    const saved = saveCustomPlaylist(name, importedTracks, source, url);
+    const updated = getCustomPlaylists();
+    setCustomPlaylists(updated);
+    setActivePlaylistIdState(saved.id);
+    setActivePlaylistId(saved.id);
+    setActiveIndex(0);
+    setEmbedOpen(true);
+    setIsPlaying(true);
+    window.setTimeout(() => sendYoutubeCommand("playVideo"), 200);
   };
 
   const playerStyle = useMemo(
@@ -337,13 +416,27 @@ export default function Home() {
       <div className="floating-note glass-card">
         <div className="note-kicker"><Mic2 size={13} /> NOW BROADCASTING</div>
         <strong>{activeTrack.title}</strong>
-        <span>{activeTrack.year} / {activeTrack.film}</span>
+        <span>{activeTrack.year ? `${activeTrack.year} / ` : ""}{activeTrack.film || activeTrack.album || "Airwaves"}</span>
         <div className="signal-bars" aria-hidden="true"><i /><i /><i /><i /><i /></div>
       </div>
 
-      <section className="utility-row single-action" aria-label="Station actions">
+      <section className="utility-row" aria-label="Station actions">
+        <PlaylistSelector
+          activePlaylistId={activePlaylistId}
+          customPlaylists={customPlaylists}
+          onSelectPlaylist={handleSelectPlaylist}
+          onDeletePlaylist={handleDeletePlaylist}
+          onOpenImportModal={() => setIsImportModalOpen(true)}
+        />
         <button className={`utility-pill ${rainOn ? "active" : ""}`} onClick={() => setRainOn((value) => !value)} aria-pressed={rainOn}>
           <CloudRain size={15} /> Baarish? <span className="utility-status">{rainOn ? "on" : "off"}</span>
+        </button>
+        <button
+          className="utility-pill"
+          onClick={() => setIsImportModalOpen(true)}
+          aria-label="Tune custom playlist link"
+        >
+          <Plus size={13} /> Tune Link
         </button>
       </section>
 
@@ -357,18 +450,29 @@ export default function Home() {
 
       <section className="player-shell glass-card" aria-label="Audio player">
         <div className="track-block">
-          <div className={`album-art ${isPlaying ? "is-spinning" : ""}`} style={{ backgroundImage: `url(${activeTrack.cover || theme.image})` }} aria-hidden="true">
+          <div className={`album-art ${isPlaying ? "is-spinning" : ""}`} style={{ backgroundImage: `url(${activeTrack.cover || activeTrack.coverUrl || theme.image})` }} aria-hidden="true">
             <span><Radio size={18} /></span>
           </div>
           <div className="track-meta">
-            <span className="track-year">{activeTrack.year} / {activeTrack.artist}</span>
+            <span className="track-year">{activeTrack.year ? `${activeTrack.year} / ` : ""}{activeTrack.artist}</span>
             <strong>{activeTrack.title}</strong>
-            <span>{activeTrack.credits}</span>
+            <span>{activeTrack.credits || activeTrack.album || "Direct Broadcast"}</span>
           </div>
         </div>
 
         <div className="player-center">
-          <div className="official-source-line"><span>OFFICIAL SOURCE</span>{activeTrack.youtubeId ? <button onClick={() => { setEmbedOpen(true); setIsPlaying(true); }}>Play here <Play size={11} fill="currentColor" /></button> : <a href={activeTrack.officialUrl} target="_blank" rel="noreferrer">Listen on YouTube <ExternalLink size={12} /></a>}</div>
+          <div className="official-source-line">
+            <span>{activePlaylistId === "preset" ? "📻 GEDI PRESET" : `📼 ${activeCustomPlaylist?.name?.toUpperCase() || "CUSTOM STATION"}`}</span>
+            {streamVideoId ? (
+              <button onClick={() => { setEmbedOpen(true); setIsPlaying(true); }}>
+                Play here <Play size={11} fill="currentColor" />
+              </button>
+            ) : (
+              <a href={activeTrack.officialUrl} target="_blank" rel="noreferrer">
+                Listen on Source <ExternalLink size={12} />
+              </a>
+            )}
+          </div>
           <div className="player-buttons">
             <button className="icon-button" onClick={() => goToTrack(-1)} aria-label="Previous song"><ChevronLeft size={19} /></button>
             <button className="play-button" onClick={togglePlay} aria-label={isPlaying ? "Pause official song" : "Play official song inside gedi"}>{isPlaying ? <Pause size={21} fill="currentColor" /> : <Play size={21} fill="currentColor" />}</button>
@@ -377,7 +481,7 @@ export default function Home() {
         </div>
 
         <div className="player-source-column">
-          {embedOpen && activeTrack.youtubeId ? (
+          {embedOpen && streamVideoId ? (
             <div className="youtube-inline">
               <div className="youtube-inline-head">
                 <span>{isPlaying ? "PLAYING IN GEDI" : "PAUSED"}</span>
@@ -395,11 +499,11 @@ export default function Home() {
               </div>
               <div className="youtube-media-wrapper">
                 <iframe
-                  key={activeTrack.youtubeId}
+                  key={streamVideoId}
                   ref={youtubeFrameRef}
                   id="gedi-youtube-player"
                   title={`${activeTrack.title} official video`}
-                  src={`https://www.youtube.com/embed/${activeTrack.youtubeId}?${youtubeParams}`}
+                  src={`https://www.youtube.com/embed/${streamVideoId}?${youtubeParams}`}
                   referrerPolicy="origin"
                   allow="autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
@@ -455,6 +559,12 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportSuccess={handleImportSuccess}
+      />
     </main>
   );
 }
