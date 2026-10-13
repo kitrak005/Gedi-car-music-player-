@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowDown,
+  Check,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
   CloudRain,
+  Copy,
   ExternalLink,
   Heart,
   Info,
@@ -113,6 +115,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [modal, setModal] = useState<ModalType>(null);
+  const [copiedEmail, setCopiedEmail] = useState(false);
   const [embedOpen, setEmbedOpen] = useState(false);
   const rainAudioRef = useRef<HTMLAudioElement>(null);
   const youtubeFrameRef = useRef<HTMLIFrameElement>(null);
@@ -163,6 +166,13 @@ export default function Home() {
   }, [rainOn, rainVolume]);
 
   const changeTheme = () => setThemeIndex((value) => (value + 1) % themes.length);
+
+  const copyStationEmail = () => {
+    navigator.clipboard?.writeText("joshikartik.1925@gmail.com").then(() => {
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
+    }).catch(() => {});
+  };
 
   const sendYoutubeCommand = (func: "playVideo" | "pauseVideo") => {
     try {
@@ -416,15 +426,30 @@ export default function Home() {
               <>
                 <span className="eyebrow"><Heart size={12} fill="currentColor" /> KEEP THE SIGNAL WARM</span>
                 <h2>Support the late-night loop.</h2>
-                <p>Send a song to a friend, or suggest your favourite songs to get them added to the playlist.</p>
-                <a
-                  className="modal-action"
-                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=joshikartik.1925@gmail.com&su=${encodeURIComponent("Song Suggestion for Gedi Playlist")}&body=${encodeURIComponent("Hi Gedi Radio,\n\nI would love to suggest a song to be added to the playlist:\n\n- Song Title: \n- Artist / Film: \n- Year: \n- YouTube Link (optional): \n\nThanks!")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Send song on Gmail <ExternalLink size={14} />
-                </a>
+                <p>
+                  Send a song to a friend, or send your favourite tracks to{" "}
+                  <strong style={{ color: "var(--accent)" }}>joshikartik.1925@gmail.com</strong> to get them added to the playlist.
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center", marginTop: "24px" }}>
+                  <a
+                    className="modal-action"
+                    style={{ marginTop: 0 }}
+                    href={`https://mail.google.com/mail/?view=cm&fs=1&to=joshikartik.1925@gmail.com&su=${encodeURIComponent("Song Suggestion for Gedi Playlist")}&body=${encodeURIComponent("Hi Kartik,\n\nI would love to suggest this song for the Gedi playlist:\n\n- Song Title: \n- Artist / Film: \n- Year: \n- YouTube Link: \n\nThanks!")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Send to joshikartik.1925@gmail.com <ExternalLink size={14} />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={copyStationEmail}
+                    className="modal-action-copy"
+                    aria-label="Copy email address"
+                  >
+                    {copiedEmail ? <Check size={14} color="var(--accent)" /> : <Copy size={14} />}
+                    <span>{copiedEmail ? "Copied!" : "Copy Email"}</span>
+                  </button>
+                </div>
               </>
             )}
           </div>
