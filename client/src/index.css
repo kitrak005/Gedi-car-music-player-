@@ -491,7 +491,8 @@ a {
   bottom: 24px;
   left: 50%;
   display: grid;
-  grid-template-columns: 1.1fr 1fr .7fr;
+  /* minmax(0, ...) stops long text from stretching a column past its share */
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, .7fr);
   align-items: center;
   gap: 14px;
   width: min(900px, calc(100% - 80px));
@@ -584,6 +585,7 @@ a {
   display: flex;
   flex-direction: column;
   gap: 7px;
+  min-width: 0;
 }
 
 .progress-line {
@@ -605,16 +607,29 @@ a {
   align-items: center;
   justify-content: center;
   gap: 12px;
+  min-width: 0;
+  max-width: 100%;
   color: rgba(255, 248, 232, .42);
   font-family: 'DM Mono', monospace;
   font-size: 9px;
   letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+/* Long playlist names truncate with an ellipsis instead of wrapping */
+.official-source-line>span {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .official-source-line a,
 .official-source-line button {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 5px;
   border: 0;
   background: transparent;
@@ -623,6 +638,7 @@ a {
   font: inherit;
   letter-spacing: 0;
   text-transform: none;
+  white-space: nowrap;
 }
 
 .official-source-line a:hover,
@@ -1267,7 +1283,7 @@ input[type="range"] {
     left: 50%;
     transform: translateX(-50%);
     display: grid;
-    grid-template-columns: 1.15fr 1fr 0.85fr;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 0.85fr);
     align-items: center;
     width: min(900px, calc(100% - clamp(12px, 3vw, 40px)));
     height: clamp(56px, 10vh, 76px);
