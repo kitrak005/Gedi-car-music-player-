@@ -43,6 +43,7 @@ type Theme = {
 type ModalType = "about" | "faq" | "support" | null;
 
 const imageRoot = "/themes";
+const THEME_STORAGE_KEY = "gedi-theme-index";
 
 const themes: Theme[] = [
   {
@@ -115,7 +116,18 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [themeIndex, setThemeIndex] = useState(0);
+  // Chai Stop is the default; restore a theme the user selected on an earlier visit.
+  const [themeIndex, setThemeIndex] = useState(() => {
+    if (typeof window === "undefined") return 1;
+    try {
+      const savedIndex = Number(window.localStorage.getItem(THEME_STORAGE_KEY));
+      return Number.isInteger(savedIndex) && savedIndex >= 0 && savedIndex < themes.length
+        ? savedIndex
+        : 1;
+    } catch {
+      return 1;
+    }
+  });
   const [rainOn, setRainOn] = useState(false);
   const [rainVolume, setRainVolume] = useState(0.22);
   const [volume, setVolume] = useState(0.75);
@@ -221,7 +233,16 @@ export default function Home() {
     }
   }, [rainOn, rainVolume]);
 
-  const changeTheme = () => setThemeIndex((value) => (value + 1) % themes.length);
+  const changeTheme = () =>
+    setThemeIndex((value) => {
+      const nextIndex = (value + 1) % themes.length;
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, String(nextIndex));
+      } catch {
+        // Theme changes still work for this visit when storage is unavailable.
+      }
+      return nextIndex;
+    });
 
   const copyStationEmail = () => {
     navigator.clipboard?.writeText("joshikartik.1925@gmail.com").then(() => {
